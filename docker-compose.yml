@@ -1,27 +1,62 @@
-version: '3'
-
-volumes:
-  pg_data:
-  static:
-
 services:
   db:
     image: postgres:13
+    container_name: db
     volumes:
       - pg_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backend:
-    build: ./backend/
-    env_file: .env
+    build: ./backend
+    container_name: backend
+    volumes:
+      - static_data:/app/static
+      - media_data:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 kittygram_backend.wsgi"
+    restart: unless-stopped
+
   frontend:
-    env_file: .env
-    build: ./frontend/
-    command: cp -r /app/build/. /static/
+    build: ./frontend
+    container_name: frontend
     volumes:
-      - static:/static
+      - static_data:/app/build
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   gateway:
-    build: ./nginx/
-    env_file: .env
+    build: ./nginx
+    container_name: gateway
     ports:
-      - 9000:80
+      - "80:80"
     volumes:
-      - static:/static
+      - static_data:/static
+      - media_data:/media
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  static_data:
+  media_data:
