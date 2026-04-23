@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build: ./backend
+    image: artemkaomg/kittygram_backend:latest
     container_name: backend
     volumes:
       - static_data:/app/static
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    image: artemkaomg/kittygram_frontend:latest
     container_name: frontend
     volumes:
       - static_data:/app/build
@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
 
   gateway:
-    build: ./nginx
+    image: artemkaomg/kittygram_gateway:latest
     container_name: gateway
     ports:
       - "80:80"
